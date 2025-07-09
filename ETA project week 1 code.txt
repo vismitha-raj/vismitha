@@ -1,0 +1,160 @@
+ETA project week 1 code
+import pandas as pd
+import pytz
+from datetime import datetime
+
+# Load data
+df = pd.read_csv("/content/drive/MyDrive/Classroom/Pickup Five Cities Datasets/merged_city_data.csv")
+
+# ---------------------------
+# Handle Missing Values
+# ---------------------------
+def handle_missing_values(df, threshold=5):
+    for col in df.columns:
+        missing_pct = df[col].isnull().mean() * 100
+
+        if missing_pct == 0:
+            continue
+
+        if missing_pct < threshold:
+            if df[col].dtype == 'object':
+                mode_val = df[col].mode()[0]
+                df[col].fillna(mode_val, inplace=True)
+                print(f"Filled missing values in '{col}' with mode: {mode_val}")
+            else:
+                median_val = df[col].median()
+                df[col].fillna(median_val, inplace=True)
+                print(f"Filled missing values in '{col}' with median: {median_val}")
+        else:
+            print(f"'{col}' has >{threshold}% missing. Will apply backfill and forward fill.")
+
+    df.fillna(method='bfill', inplace=True)
+    df.fillna(method='ffill', inplace=True)
+    return df
+
+df = handle_missing_values(df)
+
+# ---------------------------
+# Timestamp Standardization
+# ---------------------------
+tz_local = pytz.timezone("Asia/Shanghai")
+time_cols = ['accept_time', 'pickup_time', 'time_window_start', 'time_window_end']
+
+for col in time_cols:
+    if col in df.columns:
+        df[col] = pd.to_datetime("2025-" + df[col].astype(str), format="%Y-%m-%d %H:%M:%S", errors='coerce')
+        df[col] = df[col].dt.tz_localize(tz_local).dt.tz_convert("UTC")
+
+# Extract time features
+df['accept_hour'] = df['accept_time'].dt.hour
+df['accept_day'] = df['accept_time'].dt.day
+df['accept_weekday'] = df['accept_time'].dt.weekday
+df['accept_is_weekend'] = df['accept_weekday'].isin([5, 6])
+
+df['pickup_hour'] = df['pickup_time'].dt.hour
+df['pickup_day'] = df['pickup_time'].dt.day
+df['pickup_weekday'] = df['pickup_time'].dt.weekday
+df['pickup_is_weekend'] = df['pickup_weekday'].isin([5, 6])
+
+# ---------------------------
+# GPS Road Snapping (round in-place)
+# ---------------------------
+gps_cols = ['pickup_gps_lng', 'pickup_gps_lat', 'accept_gps_lng', 'accept_gps_lat']
+
+for col in gps_cols:
+    if col in df.columns:
+        df[col] = df[col].round(4)
+
+# ---------------------------
+# Save Cleaned Pickup Data
+# ---------------------------
+df.to_csv("/content/drive/MyDrive/Classroom/Pickup Five Cities Datasets/final_cleaned_with_gps.csv", index=False)
+print("✅ Pickup dataset cleaned and saved.")
+
+import pandas as pd
+import pytz
+from datetime import datetime
+
+# Load data
+df = pd.read_csv("/content/drive/MyDrive/Classroom/Delivery Five Cities Datasets/merged_delivery_data.csv")
+
+# ---------------------------
+# Handle Missing Values
+# ---------------------------
+def handle_missing_values(df, threshold=5):
+    for col in df.columns:
+        missing_pct = df[col].isnull().mean() * 100
+
+        if missing_pct == 0:
+            continue
+
+        if missing_pct < threshold:
+            if df[col].dtype == 'object':
+                mode_val = df[col].mode()[0]
+                df[col].fillna(mode_val, inplace=True)
+                print(f"Filled missing values in '{col}' with mode: {mode_val}")
+            else:
+                median_val = df[col].median()
+                df[col].fillna(median_val, inplace=True)
+                print(f"Filled missing values in '{col}' with median: {median_val}")
+        else:
+            print(f"'{col}' has >{threshold}% missing. Will apply backfill and forward fill.")
+
+    df.fillna(method='bfill', inplace=True)
+    df.fillna(method='ffill', inplace=True)
+    return df
+
+df = handle_missing_values(df)
+
+# ---------------------------
+# Timestamp Standardization
+# ---------------------------
+tz_local = pytz.timezone("Asia/Shanghai")
+time_cols = ['accept_time', 'accept_gps_time', 'delivery_time', 'delivery_gps_time']
+
+for col in time_cols:
+    if col in df.columns:
+        df[col] = pd.to_datetime("2025-" + df[col].astype(str), format="%Y-%m-%d %H:%M:%S", errors='coerce')
+        df[col] = df[col].dt.tz_localize(tz_local).dt.tz_convert("UTC")
+
+# Extract time features
+df['accept_hour'] = df['accept_time'].dt.hour
+df['accept_day'] = df['accept_time'].dt.day
+df['accept_weekday'] = df['accept_time'].dt.weekday
+df['accept_is_weekend'] = df['accept_weekday'].isin([5, 6])
+
+df['delivery_hour'] = df['delivery_time'].dt.hour
+df['delivery_day'] = df['delivery_time'].dt.day
+df['delivery_weekday'] = df['delivery_time'].dt.weekday
+df['delivery_is_weekend'] = df['delivery_weekday'].isin([5, 6])
+
+# ---------------------------
+# GPS Road Snapping (round in-place)
+# ---------------------------
+gps_cols = ['accept_gps_lng', 'accept_gps_lat', 'delivery_gps_lng', 'delivery_gps_lat']
+
+for col in gps_cols:
+    if col in df.columns:
+        df[col] = df[col].round(4)
+
+# ---------------------------
+# Save Cleaned Delivery Data
+# ---------------------------
+df.to_csv("/content/drive/MyDrive/Classroom/Delivery Five Cities Datasets/final_cleaned_delivery_with_gps.csv", index=False)
+print("✅ Delivery dataset cleaned and saved.")
+
+
+import pandas as pd
+
+# Step 2: Load CSVs
+df1 = pd.read_csv('/content/drive/MyDrive/Classroom/Pickup Five Cities Datasets/final_cleaned_with_gps.csv')
+df2 = pd.read_csv('/content/drive/MyDrive/Classroom/Delivery Five Cities Datasets/final_cleaned_delivery_with_gps.csv')
+
+# Step 3: Merge on both order_id and courier_id
+merged_df = pd.merge(df1, df2, on=['order_id'], how='inner')
+
+# Step 4: Save to Drive
+merged_df.to_csv('/content/drive/MyDrive/Classroom/merged_data.csv', index=False)
+
+print("Merged file saved to Drive as 'merged_data.csv'")
+
